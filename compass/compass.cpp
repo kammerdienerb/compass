@@ -3,10 +3,6 @@
 // Brandon Kammerdiener -- 2018
 
 #include <llvm/Config/llvm-config.h>
-#if LLVM_VERSION_MAJOR >= 4
-/* Required for CompassQuickExit, requires LLVM 4.0 or newer */
-#include "llvm/Bitcode/BitcodeWriter.h"
-#endif
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Operator.h"
@@ -51,11 +47,6 @@ cl::opt<std::string>
                          "'analyze' creates the bottom-up call graph file. "
                          "'transform' clones functions to resolve context."),
                 cl::value_desc("mode"));
-
-static cl::opt<bool>
-    CompassQuickExit("compass-quick-exit", cl::Hidden,
-                     cl::desc("Skip opt finalizations and exit immediately "
-                              "after compass completes."));
 
 static cl::opt<bool>
     CompassClassicalCG("compass-classical-cg", cl::Hidden,
@@ -1139,10 +1130,6 @@ out:
 
             //fprintf(stderr, "wrote to buCG.txt\n");
 
-            // Don't bother doing verification or writing bitcode..
-            if (CompassQuickExit)
-                _exit(0);
-
             return false;
         } else if (CompassMode == "transform") {
             contexts_file = sync_fopen(SOURCE_LOCATIONS_FILE);
@@ -1175,31 +1162,6 @@ out:
 
             fprintf(nclones_file, "%llu\n", ncloned);
 
-#if LLVM_VERSION_MAJOR >= 4
-            if (CompassQuickExit) {
-                // Writing the bitcode ourselves is faster.
-                //fprintf(stderr, "writing bitcode..\n", n_sites);
-
-                // Try to stay consistent with the output behavior of opt.
-                auto * option = static_cast<llvm::cl::opt<std::string> *>(
-                    llvm::cl::getRegisteredOptions().lookup("o"));
-
-                std::string oname = option->getValue();
-                int fd;
-                if (oname == "-")
-                    fd = STDOUT_FILENO;
-                else
-                    fd = open(oname.c_str(), O_WRONLY | O_CREAT);
-
-                raw_fd_ostream os(fd, true);
-                WriteBitcodeToFile(theModule, os);
-                os.flush();
-                os.close();
-
-                // Exit now. Skip verification.
-                _exit(0);
-            }
-#endif
             return true;
         } else {
             fprintf(stderr, "'%s' is an invalid compass mode.\n",
