@@ -3,10 +3,6 @@
 // Brandon Kammerdiener -- 2018
 
 #include <llvm/Config/llvm-config.h>
-#if LLVM_VERSION_MAJOR >= 4
-/* Required for CompassQuickExit, requires LLVM 4.0 or newer */
-#include "llvm/Bitcode/BitcodeWriter.h"
-#endif
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Operator.h"
@@ -53,11 +49,6 @@ cl::opt<std::string>
                 cl::value_desc("mode"));
 
 static cl::opt<bool>
-    CompassQuickExit("compass-quick-exit", cl::Hidden,
-                     cl::desc("Skip opt finalizations and exit immediately "
-                              "after compass completes."));
-
-static cl::opt<bool>
     CompassClassicalCG("compass-classical-cg", cl::Hidden,
                      cl::desc("Use a classical call graph rather than "
                               "an extended call graph."));
@@ -65,11 +56,6 @@ static cl::opt<bool>
     CompassDetail("compass-detail", cl::Hidden,
                      cl::desc("Emit more detail about the calling contexts "
                               "to the contexts file."));
-
-__attribute__((used))
-static void plv(llvm::Value *v) {
-  v->print(llvm::outs());
-}
 
 static LLVMContext myContext;
 
@@ -120,8 +106,6 @@ struct compass : public ModulePass {
         allocFnMap["calloc"] = "sh_calloc";
         allocFnMap["realloc"] = "sh_realloc";
         allocFnMap["aligned_alloc"] = "sh_aligned_alloc";
-        allocFnMap["posix_memalign"] = "sh_posix_memalign";
-        allocFnMap["memalign"] = "sh_memalign";
         dallocFnMap["free"] = "sh_free";
 
 	/* C++ */
@@ -300,7 +284,7 @@ struct compass : public ModulePass {
         val = getCalledValue(site);
 
         if (BitCastOperator * op = dyn_cast<BitCastOperator>(val))
-            return dyn_cast<Function>(op->stripPointerCasts());
+            return cast<Function>(op->stripPointerCasts());
 
         return nullptr;
     }
@@ -332,42 +316,41 @@ struct compass : public ModulePass {
 
     ///////////////////////////////////////////////// construct bottom-up call graph
     ////////////////////////////////////////////////////////////////////////////////
-   
-    void rec_search(Function * f, std::set<Function*>& visited) {
-        if (!f)
-            return;
-
-        if (visited.find(f) != visited.end())
-            return;
-        visited.insert(f);
-
-        buCG[f];
-
-        for (auto & BB : *f) {
-            for (auto it = BB.begin(); it != BB.end(); it++) {
-                if (isCallSite(&*it)) {
-                    CallSite site(&*it);
-                    Function * callee = getCalledFunction(site);
-                    if (callee) {
-                        std::string combined = f->getName().str() + callee->getName().str();
-                        times1Calls2[combined] += 1;
-                        buCG[callee].insert(f);
-                        rec_search(callee, visited);
-                    }
-                }
-            }
-        }
-    }
-    
     void buildBottomUpCG() {
         std::set<Function *> visited;
 
+        // recursive convenience lambda
+        std::function<void(Function *)> rec_search =
+            [&](Function * f) {
+                if (!f)
+                    return;
+
+                if (visited.find(f) != visited.end())
+                    return;
+                visited.insert(f);
+
+                buCG[f];
+
+                for (auto & BB : *f) {
+                    for (auto it = BB.begin(); it != BB.end(); it++) {
+                        if (isCallSite(&*it)) {
+                            CallSite site(&*it);
+                            Function * callee = getCalledFunction(site);
+                            if (callee) {
+                                std::string combined = f->getName().str() + callee->getName().str();
+                                times1Calls2[combined] += 1;
+                                buCG[callee].insert(f);
+                                rec_search(callee);
+                            }
+                        }
+                    }
+                }
+            };
 
         for (Function & node : *theModule) {
-            rec_search(&node, visited);
+            rec_search(&node);
         }
     }
-
     ////////////////////////////////////////////////////////////////////////////////
 
 
@@ -471,10 +454,6 @@ struct compass : public ModulePass {
             fclone = CloneFunction(fn, VMap);
 #endif
             fclone->setName(name);
-        }
-
-        if (fn->hasComdat()) {
-            fclone->setComdat(fn->getComdat());
         }
 
         return fclone;
@@ -1003,8 +982,9 @@ out:
             // and change the name to *ben*.
             std::vector<Type *> paramTypes{};
 
-            if (&theMap == &allocFnMap)
+            if (&theMap == &allocFnMap) {
                 paramTypes.push_back(IntegerType::get(myContext, 32));
+            }
             for (auto t : fn_t->params())
                 paramTypes.push_back(t);
 
@@ -1150,10 +1130,6 @@ out:
 
             //fprintf(stderr, "wrote to buCG.txt\n");
 
-            // Don't bother doing verification or writing bitcode..
-            if (CompassQuickExit)
-                _exit(0);
-
             return false;
         } else if (CompassMode == "transform") {
             contexts_file = sync_fopen(SOURCE_LOCATIONS_FILE);
@@ -1186,31 +1162,6 @@ out:
 
             fprintf(nclones_file, "%llu\n", ncloned);
 
-#if LLVM_VERSION_MAJOR >= 4
-            if (CompassQuickExit) {
-                // Writing the bitcode ourselves is faster.
-                //fprintf(stderr, "writing bitcode..\n", n_sites);
-
-                // Try to stay consistent with the output behavior of opt.
-                auto * option = static_cast<llvm::cl::opt<std::string> *>(
-                    llvm::cl::getRegisteredOptions().lookup("o"));
-
-                std::string oname = option->getValue();
-                int fd;
-                if (oname == "-")
-                    fd = STDOUT_FILENO;
-                else
-                    fd = open(oname.c_str(), O_WRONLY | O_CREAT);
-
-                raw_fd_ostream os(fd, true);
-                WriteBitcodeToFile(theModule, os);
-                os.flush();
-                os.close();
-
-                // Exit now. Skip verification.
-                _exit(0);
-            }
-#endif
             return true;
         } else {
             fprintf(stderr, "'%s' is an invalid compass mode.\n",
