@@ -77,7 +77,7 @@ namespace {
 
 // Open a file that can be appended to simultaneously by multiple
 // processes in a safe way.
-FILE * sync_fopen(char * path) {
+FILE * sync_fopen(const char * path) {
     FILE * f = fopen(path, "a");
     if (f) {
         setvbuf(f, NULL, _IONBF, BUFSIZ);
@@ -116,125 +116,125 @@ struct compass : public ModulePass {
         nclones_file(nullptr) {
 
 	/* C */
-        allocFnMap["malloc"] = "sh_alloc";
-        allocFnMap["calloc"] = "sh_calloc";
-        allocFnMap["realloc"] = "sh_realloc";
-        allocFnMap["aligned_alloc"] = "sh_aligned_alloc";
-        allocFnMap["posix_memalign"] = "sh_posix_memalign";
-        allocFnMap["memalign"] = "sh_memalign";
-        dallocFnMap["free"] = "sh_free";
+        allocFnMap["malloc"] = "hmalloc";
+        allocFnMap["calloc"] = "hcalloc";
+        allocFnMap["realloc"] = "hrealloc";
+        allocFnMap["aligned_alloc"] = "haligned_alloc";
+        allocFnMap["posix_memalign"] = "hposix_memalign";
+        allocFnMap["memalign"] = "hmemalign";
+        dallocFnMap["free"] = "hfree";
 
 	/* C++ */
-        allocFnMap["_Znam"] = "sh_alloc";
-        allocFnMap["_Znwm"] = "sh_alloc";
-        dallocFnMap["_ZdaPv"] = "sh_free";
-        dallocFnMap["_ZdlPv"] = "sh_free";
+        allocFnMap["_Znam"] = "hmalloc";
+        allocFnMap["_Znwm"] = "hmalloc";
+        dallocFnMap["_ZdaPv"] = "hfree";
+        dallocFnMap["_ZdlPv"] = "hfree";
 
 	/* Fortran */
-        allocFnMap["f90_alloc"] = "f90_sh_alloc";
-        allocFnMap["f90_alloca"] = "f90_sh_alloca";
-        allocFnMap["f90_alloc03"] = "f90_sh_alloc03";
-        allocFnMap["f90_alloc03a"] = "f90_sh_alloc03a";
-        allocFnMap["f90_alloc03_chk"] = "f90_sh_alloc03_chk";
-        allocFnMap["f90_alloc03_chka"] = "f90_sh_alloc03_chka";
-        allocFnMap["f90_alloc04"] = "f90_sh_alloc04";
-        allocFnMap["f90_alloc04a"] = "f90_sh_alloc04a";
-        allocFnMap["f90_alloc04_chk"] = "f90_sh_alloc04_chk";
-        allocFnMap["f90_alloc04_chka"] = "f90_sh_alloc04_chka";
-        allocFnMap["f90_kalloc"] = "f90_sh_kalloc";
-        allocFnMap["f90_calloc"] = "f90_sh_calloc";
-        allocFnMap["f90_calloc03"] = "f90_sh_calloc03";
-        allocFnMap["f90_calloc03a"] = "f90_sh_calloc03a";
-        allocFnMap["f90_calloc04"] = "f90_sh_calloc04";
-        allocFnMap["f90_calloc04a"] = "f90_sh_calloc04a";
-        allocFnMap["f90_kcalloc"] = "f90_sh_kcalloc";
-        allocFnMap["f90_ptr_alloc"] = "f90_sh_ptr_alloc";
-        allocFnMap["f90_ptr_alloca"] = "f90_sh_ptr_alloca";
-        allocFnMap["f90_ptr_alloc03"] = "f90_sh_ptr_alloc03";
-        allocFnMap["f90_ptr_alloc03a"] = "f90_sh_ptr_alloc03a";
-        allocFnMap["f90_ptr_alloc04"] = "f90_sh_ptr_alloc04";
-        allocFnMap["f90_ptr_alloc04a"] = "f90_sh_ptr_alloc04a";
-        allocFnMap["f90_ptr_src_alloc03"] = "f90_sh_ptr_src_alloc03";
-        allocFnMap["f90_ptr_src_alloc03a"] = "f90_sh_ptr_src_alloc03a";
-        allocFnMap["f90_ptr_src_alloc04"] = "f90_sh_ptr_src_alloc04";
-        allocFnMap["f90_ptr_src_alloc04a"] = "f90_sh_ptr_src_alloc04a";
-        allocFnMap["f90_ptr_src_calloc03"] = "f90_sh_ptr_src_calloc03";
-        allocFnMap["f90_ptr_src_calloc03a"] = "f90_sh_ptr_src_calloc03a";
-        allocFnMap["f90_ptr_src_calloc04"] = "f90_sh_ptr_src_calloc04";
-        allocFnMap["f90_ptr_src_calloc04a"] = "f90_sh_ptr_src_calloc04a";
-        allocFnMap["f90_ptr_kalloc"] = "f90_sh_ptr_kalloc";
-        allocFnMap["f90_ptr_calloc"] = "f90_sh_ptr_calloc";
-        allocFnMap["f90_ptr_calloc03"] = "f90_sh_ptr_calloc03";
-        allocFnMap["f90_ptr_calloc03a"] = "f90_sh_ptr_calloc03a";
-        allocFnMap["f90_ptr_calloc04"] = "f90_sh_ptr_calloc04";
-        allocFnMap["f90_ptr_calloc04a"] = "f90_sh_ptr_calloc04a";
-        allocFnMap["f90_ptr_kcalloc"] = "f90_sh_ptr_kcalloc";
-        allocFnMap["f90_auto_allocv"] = "f90_sh_auto_allocv";
-        allocFnMap["f90_auto_alloc"] = "f90_sh_auto_alloc";
-        allocFnMap["f90_auto_alloc04"] = "f90_sh_auto_alloc04";
-        allocFnMap["f90_auto_calloc"] = "f90_sh_auto_calloc";
-        allocFnMap["f90_auto_calloc04"] = "f90_sh_auto_calloc04";
-        allocFnMap["f90_alloc_i8"] = "f90_sh_alloc_i8";
-        allocFnMap["f90_alloca_i8"] = "f90_sh_alloca_i8";
-        allocFnMap["f90_alloc03_i8"] = "f90_sh_alloc03_i8";
-        allocFnMap["f90_alloc03a_i8"] = "f90_sh_alloc03a_i8";
-        allocFnMap["f90_alloc03_chk_i8"] = "f90_sh_alloc03_chk_i8";
-        allocFnMap["f90_alloc03_chka_i8"] = "f90_sh_alloc03_chka_i8";
-        allocFnMap["f90_alloc04_i8"] = "f90_sh_alloc04_i8";
-        allocFnMap["f90_alloc04a_i8"] = "f90_sh_alloc04a_i8";
-        allocFnMap["f90_alloc04_chk_i8"] = "f90_sh_alloc04_chk_i8";
-        allocFnMap["f90_alloc04_chka_i8"] = "f90_sh_alloc04_chka_i8";
-        allocFnMap["f90_kalloc_i8"] = "f90_sh_kalloc_i8";
-        allocFnMap["f90_calloc_i8"] = "f90_sh_calloc_i8";
-        allocFnMap["f90_calloc03_i8"] = "f90_sh_calloc03_i8";
-        allocFnMap["f90_calloc03a_i8"] = "f90_sh_calloc03a_i8";
-        allocFnMap["f90_calloc04_i8"] = "f90_sh_calloc04_i8";
-        allocFnMap["f90_calloc04a_i8"] = "f90_sh_calloc04a_i8";
-        allocFnMap["f90_kcalloc_i8"] = "f90_sh_kcalloc_i8";
-        allocFnMap["f90_ptr_alloc_i8"] = "f90_sh_ptr_alloc_i8";
-        allocFnMap["f90_ptr_alloca_i8"] = "f90_sh_ptr_alloca_i8";
-        allocFnMap["f90_ptr_alloc03_i8"] = "f90_sh_ptr_alloc03_i8";
-        allocFnMap["f90_ptr_alloc03a_i8"] = "f90_sh_ptr_alloc03a_i8";
-        allocFnMap["f90_ptr_alloc04_i8"] = "f90_sh_ptr_alloc04_i8";
-        allocFnMap["f90_ptr_alloc04a_i8"] = "f90_sh_ptr_alloc04a_i8";
-        allocFnMap["f90_ptr_src_alloc03_i8"] = "f90_sh_ptr_src_alloc03_i8";
-        allocFnMap["f90_ptr_src_alloc03a_i8"] = "f90_sh_ptr_src_alloc03a_i8";
-        allocFnMap["f90_ptr_src_alloc04_i8"] = "f90_sh_ptr_src_alloc04_i8";
-        allocFnMap["f90_ptr_src_alloc04a_i8"] = "f90_sh_ptr_src_alloc04a_i8";
-        allocFnMap["f90_ptr_src_calloc03_i8"] = "f90_sh_ptr_src_calloc03_i8";
-        allocFnMap["f90_ptr_src_calloc03a_i8"] = "f90_sh_ptr_src_calloc03a_i8";
-        allocFnMap["f90_ptr_src_calloc04_i8"] = "f90_sh_ptr_src_calloc04_i8";
-        allocFnMap["f90_ptr_src_calloc04a_i8"] = "f90_sh_ptr_src_calloc04a_i8";
-        allocFnMap["f90_ptr_kalloc_i8"] = "f90_sh_ptr_kalloc_i8";
-        allocFnMap["f90_ptr_calloc_i8"] = "f90_sh_ptr_calloc_i8";
-        allocFnMap["f90_ptr_calloc03_i8"] = "f90_sh_ptr_calloc03_i8";
-        allocFnMap["f90_ptr_calloc03a_i8"] = "f90_sh_ptr_calloc03a_i8";
-        allocFnMap["f90_ptr_calloc04_i8"] = "f90_sh_ptr_calloc04_i8";
-        allocFnMap["f90_ptr_calloc04a_i8"] = "f90_sh_ptr_calloc04a_i8";
-        allocFnMap["f90_ptr_kcalloc_i8"] = "f90_sh_ptr_kcalloc_i8";
-        allocFnMap["f90_auto_allocv_i8"] = "f90_sh_auto_allocv_i8";
-        allocFnMap["f90_auto_alloc_i8"] = "f90_sh_auto_alloc_i8";
-        allocFnMap["f90_auto_alloc04_i8"] = "f90_sh_auto_alloc04_i8";
-        allocFnMap["f90_auto_calloc_i8"] = "f90_sh_auto_calloc_i8";
-        allocFnMap["f90_auto_calloc04_i8"] = "f90_sh_auto_calloc04_i8";
-        dallocFnMap["f90_dealloc"] = "f90_sh_dealloc";
-        dallocFnMap["f90_dealloca"] = "f90_sh_dealloca";
-        dallocFnMap["f90_dealloc03"] = "f90_sh_dealloc03";
-        dallocFnMap["f90_dealloc03a"] = "f90_sh_dealloc03a";
-        dallocFnMap["f90_dealloc_mbr"] = "f90_sh_dealloc_mbr";
-        dallocFnMap["f90_dealloc_mbr03"] = "f90_sh_dealloc_mbr03";
-        dallocFnMap["f90_dealloc_mbr03a"] = "f90_sh_dealloc_mbr03a";
-        dallocFnMap["f90_deallocx"] = "f90_sh_deallocx";
-        dallocFnMap["f90_auto_dealloc"] = "f90_sh_auto_dealloc";
-        dallocFnMap["f90_dealloc_i8"] = "f90_sh_dealloc_i8";
-        dallocFnMap["f90_dealloca_i8"] = "f90_sh_dealloca_i8";
-        dallocFnMap["f90_dealloc03_i8"] = "f90_sh_dealloc03_i8";
-        dallocFnMap["f90_dealloc03a_i8"] = "f90_sh_dealloc03a_i8";
-        dallocFnMap["f90_dealloc_mbr_i8"] = "f90_sh_dealloc_mbr_i8";
-        dallocFnMap["f90_dealloc_mbr03_i8"] = "f90_sh_dealloc_mbr03_i8";
-        dallocFnMap["f90_dealloc_mbr03a_i8"] = "f90_sh_dealloc_mbr03a_i8";
-        dallocFnMap["f90_deallocx_i8"] = "f90_sh_deallocx_i8";
-        dallocFnMap["f90_auto_dealloc_i8"] = "f90_sh_auto_dealloc_i8";
+        allocFnMap["f90_alloc"] = "f90_hmalloc_alloc";
+        allocFnMap["f90_alloca"] = "f90_hmalloc_alloca";
+        allocFnMap["f90_alloc03"] = "f90_hmalloc_alloc03";
+        allocFnMap["f90_alloc03a"] = "f90_hmalloc_alloc03a";
+        allocFnMap["f90_alloc03_chk"] = "f90_hmalloc_alloc03_chk";
+        allocFnMap["f90_alloc03_chka"] = "f90_hmalloc_alloc03_chka";
+        allocFnMap["f90_alloc04"] = "f90_hmalloc_alloc04";
+        allocFnMap["f90_alloc04a"] = "f90_hmalloc_alloc04a";
+        allocFnMap["f90_alloc04_chk"] = "f90_hmalloc_alloc04_chk";
+        allocFnMap["f90_alloc04_chka"] = "f90_hmalloc_alloc04_chka";
+        allocFnMap["f90_kalloc"] = "f90_hmalloc_kalloc";
+        allocFnMap["f90_calloc"] = "f90_hmalloc_calloc";
+        allocFnMap["f90_calloc03"] = "f90_hmalloc_calloc03";
+        allocFnMap["f90_calloc03a"] = "f90_hmalloc_calloc03a";
+        allocFnMap["f90_calloc04"] = "f90_hmalloc_calloc04";
+        allocFnMap["f90_calloc04a"] = "f90_hmalloc_calloc04a";
+        allocFnMap["f90_kcalloc"] = "f90_hmalloc_kcalloc";
+        allocFnMap["f90_ptr_alloc"] = "f90_hmalloc_ptr_alloc";
+        allocFnMap["f90_ptr_alloca"] = "f90_hmalloc_ptr_alloca";
+        allocFnMap["f90_ptr_alloc03"] = "f90_hmalloc_ptr_alloc03";
+        allocFnMap["f90_ptr_alloc03a"] = "f90_hmalloc_ptr_alloc03a";
+        allocFnMap["f90_ptr_alloc04"] = "f90_hmalloc_ptr_alloc04";
+        allocFnMap["f90_ptr_alloc04a"] = "f90_hmalloc_ptr_alloc04a";
+        allocFnMap["f90_ptr_src_alloc03"] = "f90_hmalloc_ptr_src_alloc03";
+        allocFnMap["f90_ptr_src_alloc03a"] = "f90_hmalloc_ptr_src_alloc03a";
+        allocFnMap["f90_ptr_src_alloc04"] = "f90_hmalloc_ptr_src_alloc04";
+        allocFnMap["f90_ptr_src_alloc04a"] = "f90_hmalloc_ptr_src_alloc04a";
+        allocFnMap["f90_ptr_src_calloc03"] = "f90_hmalloc_ptr_src_calloc03";
+        allocFnMap["f90_ptr_src_calloc03a"] = "f90_hmalloc_ptr_src_calloc03a";
+        allocFnMap["f90_ptr_src_calloc04"] = "f90_hmalloc_ptr_src_calloc04";
+        allocFnMap["f90_ptr_src_calloc04a"] = "f90_hmalloc_ptr_src_calloc04a";
+        allocFnMap["f90_ptr_kalloc"] = "f90_hmalloc_ptr_kalloc";
+        allocFnMap["f90_ptr_calloc"] = "f90_hmalloc_ptr_calloc";
+        allocFnMap["f90_ptr_calloc03"] = "f90_hmalloc_ptr_calloc03";
+        allocFnMap["f90_ptr_calloc03a"] = "f90_hmalloc_ptr_calloc03a";
+        allocFnMap["f90_ptr_calloc04"] = "f90_hmalloc_ptr_calloc04";
+        allocFnMap["f90_ptr_calloc04a"] = "f90_hmalloc_ptr_calloc04a";
+        allocFnMap["f90_ptr_kcalloc"] = "f90_hmalloc_ptr_kcalloc";
+        allocFnMap["f90_auto_allocv"] = "f90_hmalloc_auto_allocv";
+        allocFnMap["f90_auto_alloc"] = "f90_hmalloc_auto_alloc";
+        allocFnMap["f90_auto_alloc04"] = "f90_hmalloc_auto_alloc04";
+        allocFnMap["f90_auto_calloc"] = "f90_hmalloc_auto_calloc";
+        allocFnMap["f90_auto_calloc04"] = "f90_hmalloc_auto_calloc04";
+        allocFnMap["f90_alloc_i8"] = "f90_hmalloc_alloc_i8";
+        allocFnMap["f90_alloca_i8"] = "f90_hmalloc_alloca_i8";
+        allocFnMap["f90_alloc03_i8"] = "f90_hmalloc_alloc03_i8";
+        allocFnMap["f90_alloc03a_i8"] = "f90_hmalloc_alloc03a_i8";
+        allocFnMap["f90_alloc03_chk_i8"] = "f90_hmalloc_alloc03_chk_i8";
+        allocFnMap["f90_alloc03_chka_i8"] = "f90_hmalloc_alloc03_chka_i8";
+        allocFnMap["f90_alloc04_i8"] = "f90_hmalloc_alloc04_i8";
+        allocFnMap["f90_alloc04a_i8"] = "f90_hmalloc_alloc04a_i8";
+        allocFnMap["f90_alloc04_chk_i8"] = "f90_hmalloc_alloc04_chk_i8";
+        allocFnMap["f90_alloc04_chka_i8"] = "f90_hmalloc_alloc04_chka_i8";
+        allocFnMap["f90_kalloc_i8"] = "f90_hmalloc_kalloc_i8";
+        allocFnMap["f90_calloc_i8"] = "f90_hmalloc_calloc_i8";
+        allocFnMap["f90_calloc03_i8"] = "f90_hmalloc_calloc03_i8";
+        allocFnMap["f90_calloc03a_i8"] = "f90_hmalloc_calloc03a_i8";
+        allocFnMap["f90_calloc04_i8"] = "f90_hmalloc_calloc04_i8";
+        allocFnMap["f90_calloc04a_i8"] = "f90_hmalloc_calloc04a_i8";
+        allocFnMap["f90_kcalloc_i8"] = "f90_hmalloc_kcalloc_i8";
+        allocFnMap["f90_ptr_alloc_i8"] = "f90_hmalloc_ptr_alloc_i8";
+        allocFnMap["f90_ptr_alloca_i8"] = "f90_hmalloc_ptr_alloca_i8";
+        allocFnMap["f90_ptr_alloc03_i8"] = "f90_hmalloc_ptr_alloc03_i8";
+        allocFnMap["f90_ptr_alloc03a_i8"] = "f90_hmalloc_ptr_alloc03a_i8";
+        allocFnMap["f90_ptr_alloc04_i8"] = "f90_hmalloc_ptr_alloc04_i8";
+        allocFnMap["f90_ptr_alloc04a_i8"] = "f90_hmalloc_ptr_alloc04a_i8";
+        allocFnMap["f90_ptr_src_alloc03_i8"] = "f90_hmalloc_ptr_src_alloc03_i8";
+        allocFnMap["f90_ptr_src_alloc03a_i8"] = "f90_hmalloc_ptr_src_alloc03a_i8";
+        allocFnMap["f90_ptr_src_alloc04_i8"] = "f90_hmalloc_ptr_src_alloc04_i8";
+        allocFnMap["f90_ptr_src_alloc04a_i8"] = "f90_hmalloc_ptr_src_alloc04a_i8";
+        allocFnMap["f90_ptr_src_calloc03_i8"] = "f90_hmalloc_ptr_src_calloc03_i8";
+        allocFnMap["f90_ptr_src_calloc03a_i8"] = "f90_hmalloc_ptr_src_calloc03a_i8";
+        allocFnMap["f90_ptr_src_calloc04_i8"] = "f90_hmalloc_ptr_src_calloc04_i8";
+        allocFnMap["f90_ptr_src_calloc04a_i8"] = "f90_hmalloc_ptr_src_calloc04a_i8";
+        allocFnMap["f90_ptr_kalloc_i8"] = "f90_hmalloc_ptr_kalloc_i8";
+        allocFnMap["f90_ptr_calloc_i8"] = "f90_hmalloc_ptr_calloc_i8";
+        allocFnMap["f90_ptr_calloc03_i8"] = "f90_hmalloc_ptr_calloc03_i8";
+        allocFnMap["f90_ptr_calloc03a_i8"] = "f90_hmalloc_ptr_calloc03a_i8";
+        allocFnMap["f90_ptr_calloc04_i8"] = "f90_hmalloc_ptr_calloc04_i8";
+        allocFnMap["f90_ptr_calloc04a_i8"] = "f90_hmalloc_ptr_calloc04a_i8";
+        allocFnMap["f90_ptr_kcalloc_i8"] = "f90_hmalloc_ptr_kcalloc_i8";
+        allocFnMap["f90_auto_allocv_i8"] = "f90_hmalloc_auto_allocv_i8";
+        allocFnMap["f90_auto_alloc_i8"] = "f90_hmalloc_auto_alloc_i8";
+        allocFnMap["f90_auto_alloc04_i8"] = "f90_hmalloc_auto_alloc04_i8";
+        allocFnMap["f90_auto_calloc_i8"] = "f90_hmalloc_auto_calloc_i8";
+        allocFnMap["f90_auto_calloc04_i8"] = "f90_hmalloc_auto_calloc04_i8";
+        dallocFnMap["f90_dealloc"] = "f90_hmalloc_dealloc";
+        dallocFnMap["f90_dealloca"] = "f90_hmalloc_dealloca";
+        dallocFnMap["f90_dealloc03"] = "f90_hmalloc_dealloc03";
+        dallocFnMap["f90_dealloc03a"] = "f90_hmalloc_dealloc03a";
+        dallocFnMap["f90_dealloc_mbr"] = "f90_hmalloc_dealloc_mbr";
+        dallocFnMap["f90_dealloc_mbr03"] = "f90_hmalloc_dealloc_mbr03";
+        dallocFnMap["f90_dealloc_mbr03a"] = "f90_hmalloc_dealloc_mbr03a";
+        dallocFnMap["f90_deallocx"] = "f90_hmalloc_deallocx";
+        dallocFnMap["f90_auto_dealloc"] = "f90_hmalloc_auto_dealloc";
+        dallocFnMap["f90_dealloc_i8"] = "f90_hmalloc_dealloc_i8";
+        dallocFnMap["f90_dealloca_i8"] = "f90_hmalloc_dealloca_i8";
+        dallocFnMap["f90_dealloc03_i8"] = "f90_hmalloc_dealloc03_i8";
+        dallocFnMap["f90_dealloc03a_i8"] = "f90_hmalloc_dealloc03a_i8";
+        dallocFnMap["f90_dealloc_mbr_i8"] = "f90_hmalloc_dealloc_mbr_i8";
+        dallocFnMap["f90_dealloc_mbr03_i8"] = "f90_hmalloc_dealloc_mbr03_i8";
+        dallocFnMap["f90_dealloc_mbr03a_i8"] = "f90_hmalloc_dealloc_mbr03a_i8";
+        dallocFnMap["f90_deallocx_i8"] = "f90_hmalloc_deallocx_i8";
+        dallocFnMap["f90_auto_dealloc_i8"] = "f90_hmalloc_auto_dealloc_i8";
     }
 
     void getAnalysisUsage(AnalysisUsage & AU) const { }
@@ -258,7 +258,7 @@ struct compass : public ModulePass {
 
         return fn;
     }
-    
+
     Value * getCalledValue(CallSite & site) {
         Value    * val = nullptr;
 
@@ -285,7 +285,7 @@ struct compass : public ModulePass {
         if (fn)
             return fn;
 
-        // At this point, we are looking at an indirect call (common in code 
+        // At this point, we are looking at an indirect call (common in code
         // generated by flang).
         // We should still try to find the function if it is a simple bitcast:
         //
@@ -332,7 +332,7 @@ struct compass : public ModulePass {
 
     ///////////////////////////////////////////////// construct bottom-up call graph
     ////////////////////////////////////////////////////////////////////////////////
-   
+
     void rec_search(Function * f, std::set<Function*>& visited) {
         if (!f)
             return;
@@ -358,7 +358,7 @@ struct compass : public ModulePass {
             }
         }
     }
-    
+
     void buildBottomUpCG() {
         std::set<Function *> visited;
 
@@ -655,7 +655,7 @@ struct compass : public ModulePass {
                         // Remove edge from caller to/from callee.
                         str_CG[caller].erase(callee);
                         str_buCG[callee].erase(caller);
-                        
+
                         // Create edges for caller to/from clone.
                         str_CG[caller].insert(new_name);
                         str_buCG[new_name].insert(caller);
@@ -732,7 +732,7 @@ struct compass : public ModulePass {
                         // We already have one copy of the function, the original.
                         if (call_n == 0 && &caller == &(*callers.begin()))
                             continue;
-                    
+
                         // We need to do some actual cloning.
                     if (!sym) {
                         Function * fclone = createClone(callee_fn);
@@ -811,7 +811,7 @@ struct compass : public ModulePass {
                             str_CG[caller].erase(callee);
                             str_buCG[callee].erase(caller);
                         }
-                        
+
                         // Create edges for caller to/from clone.
                         str_CG[caller].insert(new_name);
                         str_buCG[new_name].insert(caller);
@@ -832,6 +832,32 @@ out:
     ////////////////////////////////////////////////////////////////////////////////
 
 
+    llvm::Value * create_global_string(std::string& str) {
+        llvm::ArrayType * var_t =
+        llvm::ArrayType::get(llvm::Type::getInt8Ty(myContext), str.size() + 1);
+        llvm::GlobalVariable * global_var = new llvm::GlobalVariable(
+            /*Module=*/*theModule,
+            /*Type=*/var_t,
+            /*isConstant=*/true,
+            /*Linkage=*/llvm::GlobalValue::PrivateLinkage,
+            /*Initializer=*/0, // has initializer, specified below
+            /*Name=*/".str");
+        global_var->setAlignment(1);
+        global_var->setUnnamedAddr(llvm::GlobalVariable::UnnamedAddr::Global);
+
+        llvm::Constant * str_constant =
+            llvm::ConstantDataArray::getString(myContext, str.c_str(), true);
+        global_var->setInitializer(str_constant);
+
+        llvm::Value * indices[2] = {
+            llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(myContext)),
+            llvm::Constant::getNullValue(llvm::IntegerType::getInt32Ty(myContext))};
+
+        return llvm::ConstantExpr::getGetElementPtr(var_t, global_var, indices,
+                                                    true);
+    }
+
+
     ////////////////////////////////////////////////////////////////////// getSiteID
     ////////////////////////////////////////////////////////////////////////////////
     // Returns a unique site ID given a function and the
@@ -839,23 +865,20 @@ out:
     // Works based on consistent ordering of nodes in sets
     // and maps (str_buCG).
     ////////////////////////////////////////////////////////////////////////////////
-    unsigned int getSiteID(std::string fn, unsigned int site) {
-        unsigned int id = 1;
+    llvm::Value * getSiteID(std::string fn, unsigned int i) {
+        int l;
+        std::string s;
 
-        std::set<std::string> callers;
-        for (auto & fn : allocFnMap)
-            callers.insert(str_buCG[fn.first].begin(),
-                           str_buCG[fn.first].end());
-
-        for (auto & caller : callers) {
-            if (caller == fn)
+        for (l = 0; l <= CompassDepth; l += 1) {
+            s  = fn + "/" + s;
+            if (str_buCG[fn].empty())
                 break;
-
-            id += sitesPerFn[cloneLink[caller]];
+            fn = *str_buCG[fn].begin();
         }
 
-        id += site;
-        return id;
+        s += " (" + std::to_string(i) + ")";
+
+        return create_global_string(s);
     }
     ////////////////////////////////////////////////////////////////////////////////
 
@@ -863,7 +886,7 @@ out:
     // Ouput the source locations and calling context for each allocation
     // instruction after transformation.
     ////////////////////////////////////////////////////////////////////////////////
-    void emitDebugLocation(Instruction * inst, const std::string & alloc_fn, unsigned int id) {
+    void emitDebugLocation(Instruction * inst, const std::string & alloc_fn, int id) {
         if (CompassDetail) {
             auto & loc = inst->getDebugLoc();
             if (loc) {
@@ -886,7 +909,7 @@ out:
                     << " "
                     ;
                 if (loc.getInlinedAt())
-                    buff 
+                    buff
                         << "(inlined) "
                         ;
                 buff
@@ -949,7 +972,7 @@ out:
                     << "\n"
                     ;
             }
-            
+
             std::string _buff = buff.str();
             fprintf(contexts_file, "%s\n", _buff.c_str());
         }
@@ -1000,11 +1023,11 @@ out:
 
             // Create a copy of the function declaration.
             // Add an argument to the type if it is an allocation site
-            // and change the name to *ben*.
+            // and change the name.
             std::vector<Type *> paramTypes{};
 
             if (&theMap == &allocFnMap)
-                paramTypes.push_back(IntegerType::get(myContext, 32));
+                paramTypes.push_back(IntegerType::get(myContext, 8)->getPointerTo());
             for (auto t : fn_t->params())
                 paramTypes.push_back(t);
 
@@ -1060,10 +1083,8 @@ out:
                 }
             }
 
-            std::map<Instruction*, unsigned int> ids;
-
-            // Replace and add site ID argument.
             unsigned int i = 0;
+            // Replace and add site ID argument.
             for (CallSite & site : sites) {
                 Function * fn = getCalledFunction(site);
                 std::string fn_name = fn->getName().str();
@@ -1074,10 +1095,8 @@ out:
                 if (allocFnMap.find(fn_name) != allocFnMap.end()) {
                     // If it's an allocation function, we will add a site ID
                     // argument to the call.
-                    unsigned int id = getSiteID(caller, i++);
-                    args.push_back(
-                        ConstantInt::get(IntegerType::get(myContext, 32),
-                                         id));
+                    llvm::Value * id = getSiteID(caller, i++);
+                    args.push_back(id);
 
                     for (auto it = arg_begin(site); it != arg_end(site); it++)
                         args.push_back(*it);
@@ -1094,8 +1113,6 @@ out:
                         newcall = InvokeInst::Create(get(fn_name, allocFnMap),
                                                      norm, unwind, args);
                     }
-
-                    ids[newcall] = id;
 
                     n_sites += 1;
                 } else if (dallocFnMap.find(fn_name) != dallocFnMap.end()) {
@@ -1116,10 +1133,6 @@ out:
                 }
 
                 ReplaceInstWithInst(site.getInstruction(), newcall);
-
-                if (allocFnMap.find(fn_name) != allocFnMap.end()) {
-                    emitDebugLocation(newcall, fn_name, ids[newcall]);
-                }
             }
         }
     }
@@ -1184,7 +1197,7 @@ out:
 
             fprintf(nsites_file, "%llu %llu\n", pre_n_sites, n_sites);
 
-            fprintf(nclones_file, "%llu\n", ncloned);
+            fprintf(nclones_file, "%u\n", ncloned);
 
 #if LLVM_VERSION_MAJOR >= 4
             if (CompassQuickExit) {
@@ -1203,7 +1216,7 @@ out:
                     fd = open(oname.c_str(), O_WRONLY | O_CREAT);
 
                 raw_fd_ostream os(fd, true);
-                WriteBitcodeToFile(theModule, os);
+                WriteBitcodeToFile(*theModule, os);
                 os.flush();
                 os.close();
 
@@ -1228,4 +1241,3 @@ char compass::ID = 0;
 static RegisterPass<compass> X("compass", "compass Pass",
                                false /* Only looks at CFG */,
                                false /* Analysis Pass */);
-
