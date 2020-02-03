@@ -116,19 +116,19 @@ struct compass : public ModulePass {
         nclones_file(nullptr) {
 
 	/* C */
-        allocFnMap["malloc"] = "hmalloc";
-        allocFnMap["calloc"] = "hcalloc";
-        allocFnMap["realloc"] = "hrealloc";
-        allocFnMap["aligned_alloc"] = "haligned_alloc";
-        allocFnMap["posix_memalign"] = "hposix_memalign";
-        allocFnMap["memalign"] = "hmemalign";
-        dallocFnMap["free"] = "hfree";
+        allocFnMap["malloc"] = "hmalloc_site_malloc";
+        allocFnMap["calloc"] = "hmalloc_site_calloc";
+        allocFnMap["realloc"] = "hmalloc_site_realloc";
+        allocFnMap["aligned_alloc"] = "hmalloc_site_aligned_alloc";
+        allocFnMap["posix_memalign"] = "hmalloc_site_posix_memalign";
+        allocFnMap["memalign"] = "hmalloc_site_memalign";
+        dallocFnMap["free"] = "hmalloc_site_free";
 
 	/* C++ */
-        allocFnMap["_Znam"] = "hmalloc";
-        allocFnMap["_Znwm"] = "hmalloc";
-        dallocFnMap["_ZdaPv"] = "hfree";
-        dallocFnMap["_ZdlPv"] = "hfree";
+        allocFnMap["_Znam"] = "hmalloc_site_malloc";
+        allocFnMap["_Znwm"] = "hmalloc_site_malloc";
+        dallocFnMap["_ZdaPv"] = "hmalloc_site_free";
+        dallocFnMap["_ZdlPv"] = "hmalloc_site_free";
 
 	/* Fortran */
         allocFnMap["f90_alloc"] = "f90_hmalloc_alloc";
