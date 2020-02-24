@@ -66,6 +66,10 @@ static cl::opt<bool>
                      cl::desc("Emit more detail about the calling contexts "
                               "to the contexts file."));
 
+static cl::opt<bool>
+    CompassOnlyClone("compass-only-clone", cl::Hidden,
+                     cl::desc("Just clone functions. Don't change allocation routines. "));
+
 __attribute__((used))
 static void plv(llvm::Value *v) {
   v->print(llvm::outs());
@@ -1190,7 +1194,9 @@ out:
                 doCloningExtended();
             }
 
-            transformCallSites();
+            if (!CompassOnlyClone) {
+                transformCallSites();
+            }
 
             //fprintf(stderr, "%u function clones created\n", ncloned);
             //fprintf(stderr, "%llu allocation sites\n", n_sites);
