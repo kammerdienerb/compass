@@ -66,6 +66,18 @@ static cl::opt<bool>
                      cl::desc("Emit more detail about the calling contexts "
                               "to the contexts file."));
 
+cl::opt<std::string>
+    CompassAllocListFile("compass-alloc-list",
+                cl::desc("The path to a file describing allocation functions to"
+                         "clone and their replacements. "),
+                cl::value_desc("path"));
+
+cl::opt<std::string>
+    CompassDeallocListFile("compass-dealloc-list",
+                cl::desc("The path to a file describing deallocation functions to"
+                         "clone and their replacements. "),
+                cl::value_desc("path"));
+
 __attribute__((used))
 static void plv(llvm::Value *v) {
   v->print(llvm::outs());
@@ -100,10 +112,14 @@ struct compass : public ModulePass {
     Module * theModule;
     std::map<std::string, std::string> allocFnMap;
     std::map<std::string, std::string> dallocFnMap;
+    std::set<std::string> odr_patch;
 
     FILE * contexts_file,
          * nsites_file,
          * nclones_file;
+
+    int alloc_list_file_err;
+    int dealloc_list_file_err;
 
     compass() :
         ModulePass(ID),
@@ -115,126 +131,41 @@ struct compass : public ModulePass {
         nsites_file(nullptr),
         nclones_file(nullptr) {
 
-	/* C */
-        allocFnMap["malloc"] = "sh_alloc";
-        allocFnMap["calloc"] = "sh_calloc";
-        allocFnMap["realloc"] = "sh_realloc";
-        allocFnMap["aligned_alloc"] = "sh_aligned_alloc";
-        allocFnMap["posix_memalign"] = "sh_posix_memalign";
-        allocFnMap["memalign"] = "sh_memalign";
-        dallocFnMap["free"] = "sh_free";
+        std::ifstream in;
+        std::string   s1, s2;
 
-	/* C++ */
-        allocFnMap["_Znam"] = "sh_alloc";
-        allocFnMap["_Znwm"] = "sh_alloc";
-        dallocFnMap["_ZdaPv"] = "sh_free";
-        dallocFnMap["_ZdlPv"] = "sh_free";
+        in = std::ifstream(CompassAllocListFile);
+        if (in) {
+            while (in) {
+                in >> s1;
+                in >> s2;
 
-	/* Fortran */
-        allocFnMap["f90_alloc"] = "f90_sh_alloc";
-        allocFnMap["f90_alloca"] = "f90_sh_alloca";
-        allocFnMap["f90_alloc03"] = "f90_sh_alloc03";
-        allocFnMap["f90_alloc03a"] = "f90_sh_alloc03a";
-        allocFnMap["f90_alloc03_chk"] = "f90_sh_alloc03_chk";
-        allocFnMap["f90_alloc03_chka"] = "f90_sh_alloc03_chka";
-        allocFnMap["f90_alloc04"] = "f90_sh_alloc04";
-        allocFnMap["f90_alloc04a"] = "f90_sh_alloc04a";
-        allocFnMap["f90_alloc04_chk"] = "f90_sh_alloc04_chk";
-        allocFnMap["f90_alloc04_chka"] = "f90_sh_alloc04_chka";
-        allocFnMap["f90_kalloc"] = "f90_sh_kalloc";
-        allocFnMap["f90_calloc"] = "f90_sh_calloc";
-        allocFnMap["f90_calloc03"] = "f90_sh_calloc03";
-        allocFnMap["f90_calloc03a"] = "f90_sh_calloc03a";
-        allocFnMap["f90_calloc04"] = "f90_sh_calloc04";
-        allocFnMap["f90_calloc04a"] = "f90_sh_calloc04a";
-        allocFnMap["f90_kcalloc"] = "f90_sh_kcalloc";
-        allocFnMap["f90_ptr_alloc"] = "f90_sh_ptr_alloc";
-        allocFnMap["f90_ptr_alloca"] = "f90_sh_ptr_alloca";
-        allocFnMap["f90_ptr_alloc03"] = "f90_sh_ptr_alloc03";
-        allocFnMap["f90_ptr_alloc03a"] = "f90_sh_ptr_alloc03a";
-        allocFnMap["f90_ptr_alloc04"] = "f90_sh_ptr_alloc04";
-        allocFnMap["f90_ptr_alloc04a"] = "f90_sh_ptr_alloc04a";
-        allocFnMap["f90_ptr_src_alloc03"] = "f90_sh_ptr_src_alloc03";
-        allocFnMap["f90_ptr_src_alloc03a"] = "f90_sh_ptr_src_alloc03a";
-        allocFnMap["f90_ptr_src_alloc04"] = "f90_sh_ptr_src_alloc04";
-        allocFnMap["f90_ptr_src_alloc04a"] = "f90_sh_ptr_src_alloc04a";
-        allocFnMap["f90_ptr_src_calloc03"] = "f90_sh_ptr_src_calloc03";
-        allocFnMap["f90_ptr_src_calloc03a"] = "f90_sh_ptr_src_calloc03a";
-        allocFnMap["f90_ptr_src_calloc04"] = "f90_sh_ptr_src_calloc04";
-        allocFnMap["f90_ptr_src_calloc04a"] = "f90_sh_ptr_src_calloc04a";
-        allocFnMap["f90_ptr_kalloc"] = "f90_sh_ptr_kalloc";
-        allocFnMap["f90_ptr_calloc"] = "f90_sh_ptr_calloc";
-        allocFnMap["f90_ptr_calloc03"] = "f90_sh_ptr_calloc03";
-        allocFnMap["f90_ptr_calloc03a"] = "f90_sh_ptr_calloc03a";
-        allocFnMap["f90_ptr_calloc04"] = "f90_sh_ptr_calloc04";
-        allocFnMap["f90_ptr_calloc04a"] = "f90_sh_ptr_calloc04a";
-        allocFnMap["f90_ptr_kcalloc"] = "f90_sh_ptr_kcalloc";
-        allocFnMap["f90_auto_allocv"] = "f90_sh_auto_allocv";
-        allocFnMap["f90_auto_alloc"] = "f90_sh_auto_alloc";
-        allocFnMap["f90_auto_alloc04"] = "f90_sh_auto_alloc04";
-        allocFnMap["f90_auto_calloc"] = "f90_sh_auto_calloc";
-        allocFnMap["f90_auto_calloc04"] = "f90_sh_auto_calloc04";
-        allocFnMap["f90_alloc_i8"] = "f90_sh_alloc_i8";
-        allocFnMap["f90_alloca_i8"] = "f90_sh_alloca_i8";
-        allocFnMap["f90_alloc03_i8"] = "f90_sh_alloc03_i8";
-        allocFnMap["f90_alloc03a_i8"] = "f90_sh_alloc03a_i8";
-        allocFnMap["f90_alloc03_chk_i8"] = "f90_sh_alloc03_chk_i8";
-        allocFnMap["f90_alloc03_chka_i8"] = "f90_sh_alloc03_chka_i8";
-        allocFnMap["f90_alloc04_i8"] = "f90_sh_alloc04_i8";
-        allocFnMap["f90_alloc04a_i8"] = "f90_sh_alloc04a_i8";
-        allocFnMap["f90_alloc04_chk_i8"] = "f90_sh_alloc04_chk_i8";
-        allocFnMap["f90_alloc04_chka_i8"] = "f90_sh_alloc04_chka_i8";
-        allocFnMap["f90_kalloc_i8"] = "f90_sh_kalloc_i8";
-        allocFnMap["f90_calloc_i8"] = "f90_sh_calloc_i8";
-        allocFnMap["f90_calloc03_i8"] = "f90_sh_calloc03_i8";
-        allocFnMap["f90_calloc03a_i8"] = "f90_sh_calloc03a_i8";
-        allocFnMap["f90_calloc04_i8"] = "f90_sh_calloc04_i8";
-        allocFnMap["f90_calloc04a_i8"] = "f90_sh_calloc04a_i8";
-        allocFnMap["f90_kcalloc_i8"] = "f90_sh_kcalloc_i8";
-        allocFnMap["f90_ptr_alloc_i8"] = "f90_sh_ptr_alloc_i8";
-        allocFnMap["f90_ptr_alloca_i8"] = "f90_sh_ptr_alloca_i8";
-        allocFnMap["f90_ptr_alloc03_i8"] = "f90_sh_ptr_alloc03_i8";
-        allocFnMap["f90_ptr_alloc03a_i8"] = "f90_sh_ptr_alloc03a_i8";
-        allocFnMap["f90_ptr_alloc04_i8"] = "f90_sh_ptr_alloc04_i8";
-        allocFnMap["f90_ptr_alloc04a_i8"] = "f90_sh_ptr_alloc04a_i8";
-        allocFnMap["f90_ptr_src_alloc03_i8"] = "f90_sh_ptr_src_alloc03_i8";
-        allocFnMap["f90_ptr_src_alloc03a_i8"] = "f90_sh_ptr_src_alloc03a_i8";
-        allocFnMap["f90_ptr_src_alloc04_i8"] = "f90_sh_ptr_src_alloc04_i8";
-        allocFnMap["f90_ptr_src_alloc04a_i8"] = "f90_sh_ptr_src_alloc04a_i8";
-        allocFnMap["f90_ptr_src_calloc03_i8"] = "f90_sh_ptr_src_calloc03_i8";
-        allocFnMap["f90_ptr_src_calloc03a_i8"] = "f90_sh_ptr_src_calloc03a_i8";
-        allocFnMap["f90_ptr_src_calloc04_i8"] = "f90_sh_ptr_src_calloc04_i8";
-        allocFnMap["f90_ptr_src_calloc04a_i8"] = "f90_sh_ptr_src_calloc04a_i8";
-        allocFnMap["f90_ptr_kalloc_i8"] = "f90_sh_ptr_kalloc_i8";
-        allocFnMap["f90_ptr_calloc_i8"] = "f90_sh_ptr_calloc_i8";
-        allocFnMap["f90_ptr_calloc03_i8"] = "f90_sh_ptr_calloc03_i8";
-        allocFnMap["f90_ptr_calloc03a_i8"] = "f90_sh_ptr_calloc03a_i8";
-        allocFnMap["f90_ptr_calloc04_i8"] = "f90_sh_ptr_calloc04_i8";
-        allocFnMap["f90_ptr_calloc04a_i8"] = "f90_sh_ptr_calloc04a_i8";
-        allocFnMap["f90_ptr_kcalloc_i8"] = "f90_sh_ptr_kcalloc_i8";
-        allocFnMap["f90_auto_allocv_i8"] = "f90_sh_auto_allocv_i8";
-        allocFnMap["f90_auto_alloc_i8"] = "f90_sh_auto_alloc_i8";
-        allocFnMap["f90_auto_alloc04_i8"] = "f90_sh_auto_alloc04_i8";
-        allocFnMap["f90_auto_calloc_i8"] = "f90_sh_auto_calloc_i8";
-        allocFnMap["f90_auto_calloc04_i8"] = "f90_sh_auto_calloc04_i8";
-        dallocFnMap["f90_dealloc"] = "f90_sh_dealloc";
-        dallocFnMap["f90_dealloca"] = "f90_sh_dealloca";
-        dallocFnMap["f90_dealloc03"] = "f90_sh_dealloc03";
-        dallocFnMap["f90_dealloc03a"] = "f90_sh_dealloc03a";
-        dallocFnMap["f90_dealloc_mbr"] = "f90_sh_dealloc_mbr";
-        dallocFnMap["f90_dealloc_mbr03"] = "f90_sh_dealloc_mbr03";
-        dallocFnMap["f90_dealloc_mbr03a"] = "f90_sh_dealloc_mbr03a";
-        dallocFnMap["f90_deallocx"] = "f90_sh_deallocx";
-        dallocFnMap["f90_auto_dealloc"] = "f90_sh_auto_dealloc";
-        dallocFnMap["f90_dealloc_i8"] = "f90_sh_dealloc_i8";
-        dallocFnMap["f90_dealloca_i8"] = "f90_sh_dealloca_i8";
-        dallocFnMap["f90_dealloc03_i8"] = "f90_sh_dealloc03_i8";
-        dallocFnMap["f90_dealloc03a_i8"] = "f90_sh_dealloc03a_i8";
-        dallocFnMap["f90_dealloc_mbr_i8"] = "f90_sh_dealloc_mbr_i8";
-        dallocFnMap["f90_dealloc_mbr03_i8"] = "f90_sh_dealloc_mbr03_i8";
-        dallocFnMap["f90_dealloc_mbr03a_i8"] = "f90_sh_dealloc_mbr03a_i8";
-        dallocFnMap["f90_deallocx_i8"] = "f90_sh_deallocx_i8";
-        dallocFnMap["f90_auto_dealloc_i8"] = "f90_sh_auto_dealloc_i8";
+                allocFnMap[s1] = s2;
+                printf("'%s' '%s'\n", s1.c_str(), s2.c_str());
+            }
+
+            in.close();
+            alloc_list_file_err = 0;
+        } else {
+            alloc_list_file_err = 1;
+            return;
+        }
+
+        in = std::ifstream(CompassDeallocListFile);
+        if (in) {
+            while (in) {
+                in >> s1;
+                in >> s2;
+
+                dallocFnMap[s1] = s2;
+                printf("'%s' '%s'\n", s1.c_str(), s2.c_str());
+            }
+
+            in.close();
+            dealloc_list_file_err = 0;
+        } else {
+            dealloc_list_file_err = 1;
+        }
     }
 
     void getAnalysisUsage(AnalysisUsage & AU) const { }
@@ -1130,6 +1061,16 @@ out:
     ////////////////////////////////////////////////////////////////////////////////
     bool runOnModule(Module & module) {
         theModule = &module;
+
+        if (alloc_list_file_err) {
+            fprintf(stderr, "error opening CompassAllocListFile path '%s'.\n",
+                    CompassAllocListFile.c_str());
+            return false;
+        } else if (dealloc_list_file_err) {
+            fprintf(stderr, "error opening CompassDeallocListFile path '%s'.\n",
+                    CompassDeallocListFile.c_str());
+            return false;
+        }
 
         if (CompassMode == "analyze") {
             // Clear files from previous runs.
